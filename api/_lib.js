@@ -1,0 +1,13 @@
+const crypto=require('crypto');
+const COOKIE='enro_admin';
+function env(){for(const k of ['GITHUB_TOKEN','GITHUB_OWNER','GITHUB_REPO','ADMIN_PASSWORD','AUTH_SECRET'])if(!process.env[k])throw new Error('Environment variable belum lengkap: '+k)}
+function sign(payload){const body=Buffer.from(JSON.stringify(payload)).toString('base64url');const sig=crypto.createHmac('sha256',process.env.AUTH_SECRET).update(body).digest('base64url');return body+'.'+sig}
+function verify(req){const raw=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(COOKIE+'='));if(!raw)return false;const token=decodeURIComponent(raw.slice(COOKIE.length+1));const [body,sig]=token.split('.');if(!body||!sig)return false;const expected=crypto.createHmac('sha256',process.env.AUTH_SECRET||'').update(body).digest();let got;try{got=Buffer.from(sig,'base64url')}catch{return false}if(got.length!==expected.length||!crypto.timingSafeEqual(got,expected))return false;try{const p=JSON.parse(Buffer.from(body,'base64url').toString());return p.exp>Date.now()}catch{return false}}
+function cookie(value,maxAge){return `${COOKIE}=${value}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAge}`}
+function auth(req,res){if(!verify(req)){res.status(401).json({error:'Akses admin diperlukan.'});return false}return true}
+async function gh(path,options={}){env();const url='https://api.github.com/repos/'+process.env.GITHUB_OWNER+'/'+process.env.GITHUB_REPO+'/contents/'+path;const r=await fetch(url,{...options,headers:{Authorization:'Bearer '+process.env.GITHUB_TOKEN,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',...(options.headers||{})}});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.message||'GitHub API error '+r.status);return j}
+async function readData(){try{const f=await gh('data/portfolio.json');return {data:JSON.parse(Buffer.from(f.content,'base64').toString('utf8')),sha:f.sha}}catch(e){if(String(e.message).includes('Not Found'))return {data:{projects:[],videos:[]},sha:null};throw e}}
+async function writeData(data,sha,message){const content=Buffer.from(JSON.stringify(data,null,2)).toString('base64');return gh('data/portfolio.json',{method:'PUT',body:JSON.stringify({message,content,...(sha?{sha}:{})})})}
+function id(){return crypto.randomBytes(9).toString('hex')}
+function youtubeId(url){try{const u=new URL(url);if(u.hostname==='youtu.be')return u.pathname.slice(1);if(u.hostname.endsWith('youtube.com'))return u.searchParams.get('v')||u.pathname.split('/').filter(Boolean).pop();}catch{}return null}
+module.exports={env,sign,verify,cookie,auth,gh,readData,writeData,id,youtubeId};

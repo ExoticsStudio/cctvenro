@@ -1,0 +1,14 @@
+{
+  "project": "Enro CCTV",
+  "version": "12.0.0",
+  "includes": [
+    "Main public website",
+    "Private admin CMS",
+    "Vercel serverless API",
+    "GitHub portfolio storage integration",
+    "Deployment README and environment variable template"
+  ],
+  "main_website": "public/index.html",
+  "admin_panel": "public/admin.html",
+  "admin_url_after_deploy": "/admin"
+}

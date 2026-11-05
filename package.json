@@ -1,0 +1,9 @@
+{
+  "name": "enro-cctv-v12",
+  "version": "12.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  }
+}
